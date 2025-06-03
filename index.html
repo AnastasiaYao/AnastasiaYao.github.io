@@ -54,40 +54,120 @@
         <p class="wechat-tip">请点击上方按钮播放语音</p>
     </div>
 
-    <audio id="bgMusic" loop>
-        <source src="你们是大笨蛋吗.m4a" type="audio/mp4">
-        您的浏览器不支持音频元素。
+    <script>
+        <!-- 音频元素 - 提供多种格式兼容不同设备 -->
+    <audio id="bgMusic" preload="none">
+        <source src="你们是大笨蛋吗.m4a" type="audio/mp4"> <!-- iOS优先使用m4a -->
+        <source src="你们是大笨蛋吗.mp3" type="audio/mpeg"> <!-- 安卓使用mp3 -->
+        您的浏览器不支持音频播放
     </audio>
 
     <script>
-        // 微信专用解决方案
-function weixinAudioFix(audioElement) {
-    if (typeof WeixinJSBridge === "undefined") {
-        document.addEventListener('WeixinJSBridgeReady', function() {
-            WeixinJSBridge.invoke('getNetworkType', {}, function() {
-                audioElement.play();
+        document.addEventListener('DOMContentLoaded', function() {
+            const playButton = document.getElementById('playButton');
+            const audio = document.getElementById('bgMusic');
+            const statusText = document.getElementById('statusText');
+            let isPlaying = false;
+            
+            // 检测是否微信浏览器
+            const isWeixin = /MicroMessenger/i.test(navigator.userAgent);
+            // 检测是否iOS设备
+            const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+            
+            // 播放/暂停控制
+            playButton.addEventListener('click', function() {
+                if (isPlaying) {
+                    audio.pause();
+                    isPlaying = false;
+                    playButton.textContent = '播放音乐';
+                    statusText.textContent = '音乐已暂停';
+                } else {
+                    playAudio();
+                }
             });
-        }, false);
-    } else {
-        WeixinJSBridge.invoke('getNetworkType', {}, function() {
-            audioElement.play();
+            
+            // 音频播放函数
+            function playAudio() {
+                // iOS设备需要特殊处理
+                if (isIOS) {
+                    // 先静音播放，等用户交互后再取消静音
+                    audio.muted = true;
+                    audio.play().then(() => {
+                        audio.muted = false;
+                        isPlaying = true;
+                        playButton.textContent = '暂停音乐';
+                        statusText.textContent = '音乐播放中...';
+                    }).catch(error => {
+                        handlePlayError(error);
+                    });
+                } 
+                // 微信浏览器处理
+                else if (isWeixin) {
+                    if (typeof WeixinJSBridge !== "undefined") {
+                        WeixinJSBridge.invoke('getNetworkType', {}, function() {
+                            audio.play().then(() => {
+                                isPlaying = true;
+                                playButton.textContent = '暂停音乐';
+                                statusText.textContent = '音乐播放中...';
+                            }).catch(error => {
+                                handlePlayError(error);
+                            });
+                        });
+                    } else {
+                        document.addEventListener('WeixinJSBridgeReady', function() {
+                            WeixinJSBridge.invoke('getNetworkType', {}, function() {
+                                audio.play().then(() => {
+                                    isPlaying = true;
+                                    playButton.textContent = '暂停音乐';
+                                    statusText.textContent = '音乐播放中...';
+                                }).catch(error => {
+                                    handlePlayError(error);
+                                });
+                            });
+                        }, false);
+                    }
+                } 
+                // 普通浏览器处理
+                else {
+                    audio.play().then(() => {
+                        isPlaying = true;
+                        playButton.textContent = '暂停音乐';
+                        statusText.textContent = '音乐播放中...';
+                    }).catch(error => {
+                        handlePlayError(error);
+                    });
+                }
+            }
+            
+            // 错误处理
+            function handlePlayError(error) {
+                console.error('播放失败:', error);
+                let errorMsg = '播放失败: ';
+                
+                if (error.name === 'NotAllowedError') {
+                    errorMsg += '请允许音频播放权限';
+                    if (isIOS) {
+                        errorMsg += ' (检查手机侧边静音开关)';
+                    }
+                } else if (error.name === 'AbortError') {
+                    errorMsg += '音频加载被中止';
+                } else {
+                    errorMsg += error.message;
+                }
+                
+                statusText.textContent = errorMsg;
+                statusText.style.color = '#FF3B30';
+            }
+            
+            // 音频结束时重置状态
+            audio.addEventListener('ended', function() {
+                isPlaying = false;
+                playButton.textContent = '播放音乐';
+                statusText.textContent = '音乐已结束';
+            });
         });
-    }
-}
+    </script>
 
-// 在播放按钮点击事件中调用
-document.getElementById('playButton').addEventListener('click', function() {
-    var audio = document.getElementById('bgMusic');
-    if (isWeixinBrowser()) { // 判断是否微信浏览器
-        weixinAudioFix(audio);
-    } else {
-        audio.play().catch(e => console.log(e));
-    }
-});
-
-function isWeixinBrowser() {
-    return /MicroMessenger/i.test(navigator.userAgent);
-}
     </script>
 </body>
 </html>
