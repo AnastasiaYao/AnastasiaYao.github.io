@@ -60,30 +60,34 @@
     </audio>
 
     <script>
-        document.getElementById('playButton').addEventListener('click', function() {
-            var audio = document.getElementById('bgMusic');
-            var button = document.getElementById('playButton');
-            
-            if (audio.paused) {
-                audio.play();
-                button.textContent = '暂停音乐';
-                // 微信浏览器可能需要用户手势触发
-                document.addEventListener('WeixinJSBridgeReady', function() {
-                    audio.play();
-                }, false);
-            } else {
-                audio.pause();
-                button.textContent = '播放音乐';
-            }
+        // 微信专用解决方案
+function weixinAudioFix(audioElement) {
+    if (typeof WeixinJSBridge === "undefined") {
+        document.addEventListener('WeixinJSBridgeReady', function() {
+            WeixinJSBridge.invoke('getNetworkType', {}, function() {
+                audioElement.play();
+            });
+        }, false);
+    } else {
+        WeixinJSBridge.invoke('getNetworkType', {}, function() {
+            audioElement.play();
         });
-        
-        // 自动适应微信浏览器
-        if (typeof WeixinJSBridge !== "undefined") {
-            document.addEventListener('WeixinJSBridgeReady', function() {
-                var audio = document.getElementById('bgMusic');
-                audio.play();
-            }, false);
-        }
+    }
+}
+
+// 在播放按钮点击事件中调用
+document.getElementById('playButton').addEventListener('click', function() {
+    var audio = document.getElementById('bgMusic');
+    if (isWeixinBrowser()) { // 判断是否微信浏览器
+        weixinAudioFix(audio);
+    } else {
+        audio.play().catch(e => console.log(e));
+    }
+});
+
+function isWeixinBrowser() {
+    return /MicroMessenger/i.test(navigator.userAgent);
+}
     </script>
 </body>
 </html>
